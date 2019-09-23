@@ -10,9 +10,11 @@ import java.sql.Timestamp;
 import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
@@ -28,6 +30,7 @@ public class Main {
     private static int startWorkId = 1;
     private static int batchSize = 200;
     private static long totalSize = 600_000_000L;
+    private static int printSize = 10000;
 
     public static void main(String[] args) throws Exception {
         parseCommandLine(args);
@@ -39,7 +42,8 @@ public class Main {
 
     private static void workload(int concurrency) {
         CountDownLatch tmpwg = new CountDownLatch(concurrency);
-        final AtomicInteger workId = new AtomicInteger(1);
+        final AtomicInteger workId = new AtomicInteger(startWorkId);
+        final AtomicLong remainSize = new AtomicLong(-totalSize);
         final long sizePerThread = totalSize / concurrency;
         for (int i = 0; i < concurrency; i++) {
             new Thread(() -> {
@@ -48,10 +52,10 @@ public class Main {
                     conn = DbUtil.getInstance().getConnection();
                     PreparedStatement inPstmt = conn.prepareStatement(insertSQL);
                     final UidGenerator uidGenerator = new UidGenerator(30, 20, 13);
-                    uidGenerator.setWorkerId(workId.getAndAdd(startWorkId));
+                    uidGenerator.setWorkerId(workId.getAndAdd(1));
                     RandStringGenerator stringGenerator = new RandStringGenerator();
-                    long repeat = 1;
-                    while (repeat < sizePerThread) {
+                    long threadInsertedSize = 0;
+                    while (threadInsertedSize < sizePerThread) {
                         try {
                             insert(inPstmt, uidGenerator, stringGenerator);
                         } catch (Exception e) {
@@ -60,12 +64,13 @@ public class Main {
                             conn = DbUtil.getInstance().getConnection();
                             inPstmt = conn.prepareStatement(insertSQL);
                         }
-                        if (repeat % 50 == 0) {
+                        threadInsertedSize += batchSize;
+                        if (threadInsertedSize % printSize == 0) {
                             System.out.println(Thread.currentThread().getId() + "  " + new Date()
                                 + "  add batch done: batch= " + batchSize + " thread total="
-                                + repeat);
+                                + threadInsertedSize + " remain size=" + (-remainSize.addAndGet(printSize)));
                         }
-                        repeat += batchSize;
+
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -103,7 +108,7 @@ public class Main {
             inPstmt.setString(2, stringGenerator.genRandStr(50));
             inPstmt.setString(3, "01");
             inPstmt.setString(4, stringGenerator.genRandStr(50));
-            inPstmt.setString(5, stringGenerator.genRandStr(70000));
+            inPstmt.setString(5, stringGenerator.genRandStr(7000));
             inPstmt.setString(6, stringGenerator.genRandStr(60));
             inPstmt.setInt(7, 1);
             inPstmt.setTimestamp(8, new Timestamp(now));
@@ -129,9 +134,11 @@ public class Main {
         Option optThread = new Option("t", "thread", true, "thread num");
         Option optDryRun = new Option("d", "dryRun", false, "dry run model");
         Option optDatabase = new Option("s", "database", true, "database name");
-        Option optBatchSize = new Option("b", "batch", true, "batch size");
-        Option optWorkId = new Option("w", "work", true, "start work id");
+        Option optBatchSize = new Option("b", "batch", true, "batch size per insert");
+        Option optWorkId = new Option("w", "work", true, "the start snow flake work node id, one work id per thread");
         Option optSize = new Option("c", "count", true, "total insert row count");
+        Option optInfoSize = new Option("i", "print", true, "print a log per insert count");
+        Option optHelp = new Option("v", "help", false, "print help message");
 
         opts.addOption(optHost);
         opts.addOption(optPort);
@@ -143,6 +150,8 @@ public class Main {
         opts.addOption(optBatchSize);
         opts.addOption(optWorkId);
         opts.addOption(optSize);
+        opts.addOption(optInfoSize);
+        opts.addOption(optHelp);
 
         CommandLineParser parser = new DefaultParser();
         CommandLine line = parser.parse(opts, args);
@@ -175,6 +184,14 @@ public class Main {
         }
         if (line.hasOption("c")) {
             totalSize = Long.parseLong(line.getOptionValue("c"));
+        }
+        if (line.hasOption("i")) {
+            printSize = Integer.parseInt(line.getOptionValue("i"));
+        }
+        if(line.hasOption("v")) {
+            HelpFormatter formatter = new HelpFormatter();
+            formatter.printHelp( "workload", opts, true );
+            System.exit(0);
         }
     }
 }
