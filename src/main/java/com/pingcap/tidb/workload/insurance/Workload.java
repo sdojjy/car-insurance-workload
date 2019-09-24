@@ -58,7 +58,7 @@ public class Workload {
             System.out.println(new Date() + " start to query random record from TiDB....");
             PreparedStatement ps = conn.prepareStatement(String
                 .format(
-                    "select customercode, idtype, idcode from faceidentify order by rand() limit %d;",
+                    "select customername, idtype, idcode  from (select * from faceidentify limit 50000) t order by rand() limit %d; ",
                     fetchSize));
             ResultSet rs = ps.executeQuery();
             int index = 0;
