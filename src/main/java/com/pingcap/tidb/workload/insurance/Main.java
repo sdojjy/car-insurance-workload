@@ -24,7 +24,7 @@ public class Main {
     private static int port = 4000;
     private static String user = "root";
     private static String password = "";
-    private static String dbName = "test";
+    private static String dbName = "cssb";
     private static int thread = 50;
     private static boolean dryRun = false;
     private static int startWorkId = 1;
