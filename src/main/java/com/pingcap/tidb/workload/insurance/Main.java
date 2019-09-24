@@ -51,6 +51,7 @@ public class Main {
                 Connection conn = null;
                 try {
                     conn = DbUtil.getInstance().getConnection();
+                    conn.setAutoCommit(false);
                     PreparedStatement inPstmt = conn.prepareStatement(insertSQL);
                     final UidGenerator uidGenerator = new UidGenerator(30, 20, 13);
                     uidGenerator.setWorkerId(workId.getAndAdd(1));
@@ -59,10 +60,12 @@ public class Main {
                     while (threadInsertedSize < sizePerThread) {
                         try {
                             insert(inPstmt, uidGenerator, stringGenerator);
+                            conn.commit();
                         } catch (Exception e) {
                             e.printStackTrace();
                             DbUtil.getInstance().closeConnection(conn);
                             conn = DbUtil.getInstance().getConnection();
+                            conn.setAutoCommit(false);
                             inPstmt = conn.prepareStatement(insertSQL);
                         }
                         threadInsertedSize += batchSize;

@@ -88,6 +88,7 @@ public class Workload {
                 Connection conn = null;
                 try {
                     conn = DbUtil.getInstance().getConnection();
+                    conn.setAutoCommit(false);
                     PreparedStatement selectPs = conn.prepareStatement(selectSQL);
                     PreparedStatement updatePs = conn.prepareStatement(updateSQL);
                     RandStringGenerator stringGenerator = new RandStringGenerator();
@@ -124,11 +125,13 @@ public class Workload {
                                 updatePs.setString(1, stringGenerator.genRandStr(50));
                                 updatePs.setString(2, stringGenerator.genRandStr(7000));
                                 updatePs.execute();
+                                conn.commit();
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
                             DbUtil.getInstance().closeConnection(conn);
                             conn = DbUtil.getInstance().getConnection();
+                            conn.setAutoCommit(false);
                             selectPs = conn.prepareStatement(selectSQL);
                             updatePs = conn.prepareStatement(updateSQL);
                         }
