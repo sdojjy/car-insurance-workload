@@ -29,7 +29,7 @@ public class Main {
     private static boolean dryRun = false;
     private static int startWorkId = 1;
     private static int batchSize = 200;
-    private static long totalSize = 600_000_000L;
+    private static long totalSize = 1_000_000_000L;
     private static int printSize = 10000;
 
     public static void main(String[] args) throws Exception {
