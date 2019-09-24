@@ -26,6 +26,7 @@ public class Workload {
     private static int thread = 50;
     private static int printSize = 10000;
     private static int fetchSize = 10000;
+    private static long workloadSize = 10_000_000_000L;
 
     private static int existsPercent = 90;
     private static int selectPercent = 50;
@@ -35,6 +36,7 @@ public class Workload {
         DbUtil.getInstance().initConnectionPool(String.format(
             "jdbc:mysql://%s:%s/%s?useunicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useLocalSessionState=true",
             host, port, dbName), user, password);
+        System.out.println(new Date() + " start workload....");
         queryIds();
         Workload.workload(thread);
     }
@@ -45,6 +47,7 @@ public class Workload {
         private String idtype;
         private String idcode;
     }
+
     private static Record[] ids = null;
 
     private static void queryIds() throws Exception {
@@ -52,8 +55,10 @@ public class Workload {
         try {
             ids = new Record[fetchSize];
             conn = DbUtil.getInstance().getConnection();
+            System.out.println(new Date() + " start to query random record from TiDB....");
             PreparedStatement ps = conn.prepareStatement(String
-                .format("select customercode, idtype, idcode from faceidentify order by rand() limit %d;",
+                .format(
+                    "select customercode, idtype, idcode from faceidentify order by rand() limit %d;",
                     fetchSize));
             ResultSet rs = ps.executeQuery();
             int index = 0;
@@ -70,6 +75,7 @@ public class Workload {
                 DbUtil.getInstance().closeConnection(conn);
             }
         }
+        System.out.println(new Date() + " query random record from TiDB done");
     }
 
     private static final String selectSQL = "select * from faceidentify where customername=? and idtype=? and idcode=?";
@@ -87,12 +93,12 @@ public class Workload {
                     RandStringGenerator stringGenerator = new RandStringGenerator();
 
                     Pcg32 pcg = new Pcg32();
-                    long threadInsertedSize = 0;
-                    while (true) {
+                    long threadFinishedSize = 0;
+                    while (threadFinishedSize < workloadSize) {
                         try {
                             int actionModel = pcg.nextInt(100);
                             int model = pcg.nextInt(100);
-                            if (actionModel<=selectPercent) {
+                            if (actionModel <= selectPercent) {
                                 if (model <= existsPercent) {
                                     Record id = ids[pcg.nextInt(ids.length)];
                                     selectPs.setString(1, id.customername);
@@ -126,9 +132,12 @@ public class Workload {
                             selectPs = conn.prepareStatement(selectSQL);
                             updatePs = conn.prepareStatement(updateSQL);
                         }
-                        threadInsertedSize ++;
-                        if (threadInsertedSize % printSize == 0) {
-                            System.out.println(Thread.currentThread().getId() + "  " + new Date());
+                        threadFinishedSize++;
+                        if (threadFinishedSize % printSize == 0) {
+                            System.out.println(
+                                new Date() + " " + Thread.currentThread().getId() + " finished  "
+                                    + threadFinishedSize + " workload, remain " + (workloadSize
+                                    - threadFinishedSize));
                         }
                     }
                 } catch (Exception e) {
@@ -160,12 +169,15 @@ public class Workload {
         Option optPassword = new Option("p", "password", true, "mysql password");
         Option optThread = new Option("t", "thread", true, "thread num");
         Option optDatabase = new Option("s", "database", true, "database name");
-        Option optSize = new Option("f", "fetch", true, "fetch id size from db as the exists ids to point get or point update");
+        Option optSize = new Option("f", "fetch", true,
+            "fetch id size from db as the exists ids to point get or point update");
         Option optInfoSize = new Option("i", "print", true, "print a log per insert count");
         Option optHelp = new Option("v", "help", false, "print help message");
 
-        Option optQueryPercent = new Option("q", "query-percent", true, "query percent , default value is 50");
-        Option optExistsPercent = new Option("e", "exists-percent", true, "exists percent, default value is 90");
+        Option optQueryPercent = new Option("q", "query-percent", true,
+            "query percent , default value is 50");
+        Option optExistsPercent = new Option("e", "exists-percent", true,
+            "exists percent, default value is 90");
 
         opts.addOption(optHost);
         opts.addOption(optPort);
@@ -178,6 +190,7 @@ public class Workload {
         opts.addOption(optHelp);
         opts.addOption(optQueryPercent);
         opts.addOption(optExistsPercent);
+        opts.addOption("w", "workload-size", true, "query or update per thread");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine line = parser.parse(opts, args);
@@ -210,6 +223,9 @@ public class Workload {
         }
         if (line.hasOption("e")) {
             existsPercent = Integer.parseInt(line.getOptionValue("e"));
+        }
+        if (line.hasOption("w")) {
+            workloadSize = Long.parseLong(line.getOptionValue("w"));
         }
         if (line.hasOption("v")) {
             HelpFormatter formatter = new HelpFormatter();

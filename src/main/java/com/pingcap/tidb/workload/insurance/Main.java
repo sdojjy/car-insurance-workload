@@ -37,6 +37,7 @@ public class Main {
         DbUtil.getInstance().initConnectionPool(String.format(
             "jdbc:mysql://%s:%s/%s?useunicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useLocalSessionState=true",
             host, port, dbName), user, password);
+        System.out.println(new Date() + " start insert data...." );
         Main.workload(thread);
     }
 
@@ -66,8 +67,7 @@ public class Main {
                         }
                         threadInsertedSize += batchSize;
                         if (threadInsertedSize % printSize == 0) {
-                            System.out.println(Thread.currentThread().getId() + "  " + new Date()
-                                + "  add batch done: batch= " + batchSize + " thread total="
+                            System.out.println(new Date() + " " + Thread.currentThread().getId() + "  add batch done: batch= " + batchSize + " thread total="
                                 + threadInsertedSize + " remain size=" + (-remainSize.addAndGet(printSize)));
                         }
 
