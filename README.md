@@ -34,12 +34,12 @@ primary key (customercode )) shard_row_id_bits=5 pre_split_regions=4;
 - run java command to insert data 
 ```shell
 cd build/libs/
-java -Xmx12G -Xms12G -cp ./car-insurance-workload-all.jar com.pingcap.tidb.workload.insurance.Main   -P 3306 -p abc -i  50000 -t 100
+java -Xmx12G -Xms12G -cp ./car-insurance-workload-all.jar com.pingcap.tidb.workload.insurance.InsertData   -P 3306 -p abc -i  50000 -t 100
 ```
 
 - view the more command options information
 ```shell
-java -cp ./car-insurance-workload-all.jar com.pingcap.tidb.workload.insurance.Main  -v
+java -cp ./car-insurance-workload-all.jar com.pingcap.tidb.workload.insurance.InsertData  -v
 usage: workload [-b <arg>] [-c <arg>] [-d] [-h <arg>] [-i <arg>] [-P
        <arg>] [-p <arg>] [-s <arg>] [-t <arg>] [-u <arg>] [-v] [-w <arg>]
  -b,--batch <arg>      batch size per insert

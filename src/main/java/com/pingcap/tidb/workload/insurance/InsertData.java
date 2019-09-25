@@ -18,7 +18,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-public class Main {
+public class InsertData {
 
     private static String host = "127.0.0.1";
     private static int port = 4000;
@@ -38,7 +38,7 @@ public class Main {
             "jdbc:mysql://%s:%s/%s?useunicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useLocalSessionState=true",
             host, port, dbName), user, password);
         System.out.println(new Date() + " start insert data...." );
-        Main.workload(thread);
+        InsertData.workload(thread);
     }
 
     private static void workload(int concurrency) {
@@ -51,7 +51,6 @@ public class Main {
                 Connection conn = null;
                 try {
                     conn = DbUtil.getInstance().getConnection();
-                    conn.setAutoCommit(false);
                     PreparedStatement inPstmt = conn.prepareStatement(insertSQL);
                     final UidGenerator uidGenerator = new UidGenerator(30, 20, 13);
                     uidGenerator.setWorkerId(workId.getAndAdd(1));
@@ -60,12 +59,10 @@ public class Main {
                     while (threadInsertedSize < sizePerThread) {
                         try {
                             insert(inPstmt, uidGenerator, stringGenerator);
-                            conn.commit();
                         } catch (Exception e) {
                             e.printStackTrace();
                             DbUtil.getInstance().closeConnection(conn);
                             conn = DbUtil.getInstance().getConnection();
-                            conn.setAutoCommit(false);
                             inPstmt = conn.prepareStatement(insertSQL);
                         }
                         threadInsertedSize += batchSize;
