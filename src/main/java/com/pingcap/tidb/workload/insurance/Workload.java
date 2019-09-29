@@ -34,7 +34,7 @@ public class Workload {
     public static void main(String[] args) throws Exception {
         parseCommandLine(args);
         DbUtil.getInstance().initConnectionPool(String.format(
-            "jdbc:mysql://%s:%s/%s?useunicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useLocalSessionState=true&cachePrepStmts=true",
+            "jdbc:mysql://%s:%s/%s?useunicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useLocalSessionState=true&cachePrepStmts=true&useServerPrepStmts=true",
             host, port, dbName), user, password);
         System.out.println(new Date() + " start workload....");
         queryIds();
