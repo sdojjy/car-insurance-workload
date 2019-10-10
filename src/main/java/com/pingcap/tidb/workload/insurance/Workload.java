@@ -53,7 +53,8 @@ public class Workload {
     }
 
     private  static Record getNextRecord(Pcg32 pcg, boolean modify) {
-//        return ids.poll();
+//        return  ids.poll();
+
         Record r = ids[pcg.nextInt(ids.length)];
         if (!modify) {
             return r;
@@ -71,11 +72,13 @@ public class Workload {
     }
 
     private static Record[] ids = null;
+//    private static ArrayBlockingQueue<Record> ids = null;
 
     private static void queryIds() throws Exception {
         Connection conn = null;
         try {
             ids = new Record[fetchSize];
+//            ids = new ArrayBlockingQueue<Record>(fetchSize);
             conn = DbUtil.getInstance().getConnection();
             System.out.println(new Date() + " start to query random record from TiDB....");
             PreparedStatement ps = conn.prepareStatement(String
