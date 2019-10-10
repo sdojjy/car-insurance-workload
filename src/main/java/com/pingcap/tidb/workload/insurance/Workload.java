@@ -152,7 +152,7 @@ public class Workload {
                                 updatePs.setString(1, stringGenerator.genRandStr(50));
                                 updatePs.setString(2, stringGenerator.genRandStr(7000));
                                 updatePs.execute();
-                                selectConnection.commit();
+                                updateConnection.commit();
                                 if (id != null) {
                                     resetFlags(id);
                                 }
