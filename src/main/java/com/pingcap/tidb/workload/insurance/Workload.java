@@ -52,7 +52,7 @@ public class Workload {
 
     private synchronized static Record getNextRecord(Pcg32 pcg ) {
         Record r = ids[pcg.nextInt(ids.length)];
-        while (!r.used) {
+        while (r.used) {
             r = ids[pcg.nextInt(ids.length)];
         }
         r.used = true;
