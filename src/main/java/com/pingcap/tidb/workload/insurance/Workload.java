@@ -52,8 +52,8 @@ public class Workload {
         volatile boolean used = false;
     }
 
-    private  static Record getNextRecord(Pcg32 pcg, boolean modify) {
-        return  ids.poll();
+    private static Record getNextRecord(Pcg32 pcg, boolean modify) {
+        return ids.poll();
 
 //        Record r = ids[pcg.nextInt(ids.length)];
 //        if (!modify) {
@@ -66,12 +66,12 @@ public class Workload {
 //        return r;
     }
 
-    private  static void resetFlags(Record r) {
+    private static void resetFlags(Record r) {
         r.used = false;
         ids.add(r);
     }
 
-//    private static Record[] ids = null;
+    //    private static Record[] ids = null;
     private static ArrayBlockingQueue<Record> ids = null;
 
     private static void queryIds() throws Exception {
@@ -111,15 +111,12 @@ public class Workload {
         CountDownLatch tmpwg = new CountDownLatch(concurrency);
         for (int i = 0; i < concurrency; i++) {
             new Thread(() -> {
-                Connection selectConnection = null;
-                Connection updateConnection = null;
+                Connection conn = null;
                 try {
-                    selectConnection = DbUtil.getInstance().getConnection();
-                    updateConnection = DbUtil.getInstance().getConnection();
-                    selectConnection.setAutoCommit(true);
-                    updateConnection.setAutoCommit(false);
-                    PreparedStatement selectPs = selectConnection.prepareStatement(selectSQL);
-                    PreparedStatement updatePs = updateConnection.prepareStatement(updateSQL);
+                    conn = DbUtil.getInstance().getConnection();
+                    conn.setAutoCommit(false);
+                    PreparedStatement selectPs = conn.prepareStatement(selectSQL);
+                    PreparedStatement updatePs = conn.prepareStatement(updateSQL);
                     RandStringGenerator stringGenerator = new RandStringGenerator();
 
                     Pcg32 pcg = new Pcg32();
@@ -156,21 +153,18 @@ public class Workload {
                                 updatePs.setString(1, stringGenerator.genRandStr(50));
                                 updatePs.setString(2, stringGenerator.genRandStr(7000));
                                 updatePs.execute();
-                                updateConnection.commit();
+                                conn.commit();
                                 if (id != null) {
                                     resetFlags(id);
                                 }
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
-                            DbUtil.getInstance().closeConnection(selectConnection);
-                            DbUtil.getInstance().closeConnection(updateConnection);
-                            selectConnection = DbUtil.getInstance().getConnection();
-                            updateConnection = DbUtil.getInstance().getConnection();
-                            selectConnection.setAutoCommit(true);
-                            updateConnection.setAutoCommit(false);
-                            selectPs = selectConnection.prepareStatement(selectSQL);
-                            updatePs = updateConnection.prepareStatement(updateSQL);
+                            DbUtil.getInstance().closeConnection(conn);
+                            conn = DbUtil.getInstance().getConnection();
+                            conn.setAutoCommit(false);
+                            selectPs = conn.prepareStatement(selectSQL);
+                            updatePs = conn.prepareStatement(updateSQL);
                         }
                         threadFinishedSize++;
                         if (threadFinishedSize % printSize == 0) {
@@ -185,11 +179,8 @@ public class Workload {
                 } finally {
                     tmpwg.countDown();
                     try {
-                        if (selectConnection != null) {
-                            DbUtil.getInstance().closeConnection(selectConnection);
-                        }
-                        if (updateConnection != null) {
-                            DbUtil.getInstance().closeConnection(updateConnection);
+                        if (conn != null) {
+                            DbUtil.getInstance().closeConnection(conn);
                         }
                     } catch (SQLException e) {
                         e.printStackTrace();
