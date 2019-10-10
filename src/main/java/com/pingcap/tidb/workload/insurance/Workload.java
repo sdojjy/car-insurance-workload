@@ -46,6 +46,21 @@ public class Workload {
         private String customername;
         private String idtype;
         private String idcode;
+
+        volatile boolean used = false;
+    }
+
+    private synchronized static Record getNextRecord(Pcg32 pcg ) {
+        Record r = ids[pcg.nextInt(ids.length)];
+        while (!r.used) {
+            r = ids[pcg.nextInt(ids.length)];
+        }
+        r.used = true;
+        return r;
+    }
+
+    private static void resetFlags(Record r) {
+        r.used = false;
     }
 
     private static Record[] ids = null;
@@ -100,8 +115,9 @@ public class Workload {
                             int actionModel = pcg.nextInt(100);
                             int model = pcg.nextInt(100);
                             if (actionModel <= selectPercent) {
+                                Record id = null;
                                 if (model <= existsPercent) {
-                                    Record id = ids[pcg.nextInt(ids.length)];
+                                    id = getNextRecord(pcg);
                                     selectPs.setString(1, id.customername);
                                     selectPs.setString(2, id.idtype);
                                     selectPs.setString(3, id.idcode);
@@ -111,9 +127,13 @@ public class Workload {
                                     selectPs.setString(3, "" + pcg.nextInt(10000));
                                 }
                                 selectPs.executeQuery();
+                                if (id!=null){
+                                    resetFlags(id);
+                                }
                             } else {
+                                Record id = null;
                                 if (model <= existsPercent) {
-                                    Record id = ids[pcg.nextInt(ids.length)];
+                                    id = getNextRecord(pcg);
                                     updatePs.setString(3, id.customername);
                                     updatePs.setString(4, id.idtype);
                                     updatePs.setString(5, id.idcode);
@@ -126,6 +146,9 @@ public class Workload {
                                 updatePs.setString(2, stringGenerator.genRandStr(7000));
                                 updatePs.execute();
                                 conn.commit();
+                                if (id!=null){
+                                    resetFlags(id);
+                                }
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
