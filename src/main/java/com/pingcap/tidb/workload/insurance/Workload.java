@@ -130,7 +130,7 @@ public class Workload {
                             int model = pcg.nextInt(100);
                             if (actionModel <= selectPercent) {
                                 if (model <= existsPercent) {
-                                    Record id = getNextRecord(pcg, true);
+                                    Record id = getNextRecord(pcg, false);
                                     selectPs.setString(1, id.customername);
                                     selectPs.setString(2, id.idtype);
                                     selectPs.setString(3, id.idcode);
@@ -143,7 +143,7 @@ public class Workload {
                             } else {
                                 Record id = null;
                                 if (model <= existsPercent) {
-                                    id = getNextRecord(pcg, false);
+                                    id = getNextRecord(pcg, true);
                                     updatePs.setString(3, id.customername);
                                     updatePs.setString(4, id.idtype);
                                     updatePs.setString(5, id.idcode);
