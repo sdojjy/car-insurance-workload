@@ -43,6 +43,7 @@ public class Workload {
 
 
     private static class Record {
+
         private String customername;
         private String idtype;
         private String idcode;
@@ -50,8 +51,11 @@ public class Workload {
         volatile boolean used = false;
     }
 
-    private synchronized static Record getNextRecord(Pcg32 pcg ) {
+    private synchronized static Record getNextRecord(Pcg32 pcg, boolean modify) {
         Record r = ids[pcg.nextInt(ids.length)];
+        if (!modify) {
+            return r;
+        }
         while (r.used) {
             r = ids[pcg.nextInt(ids.length)];
         }
@@ -100,12 +104,15 @@ public class Workload {
         CountDownLatch tmpwg = new CountDownLatch(concurrency);
         for (int i = 0; i < concurrency; i++) {
             new Thread(() -> {
-                Connection conn = null;
+                Connection selectConnection = null;
+                Connection updateConnection = null;
                 try {
-                    conn = DbUtil.getInstance().getConnection();
-                    conn.setAutoCommit(false);
-                    PreparedStatement selectPs = conn.prepareStatement(selectSQL);
-                    PreparedStatement updatePs = conn.prepareStatement(updateSQL);
+                    selectConnection = DbUtil.getInstance().getConnection();
+                    updateConnection = DbUtil.getInstance().getConnection();
+                    selectConnection.setAutoCommit(true);
+                    updateConnection.setAutoCommit(false);
+                    PreparedStatement selectPs = selectConnection.prepareStatement(selectSQL);
+                    PreparedStatement updatePs = updateConnection.prepareStatement(updateSQL);
                     RandStringGenerator stringGenerator = new RandStringGenerator();
 
                     Pcg32 pcg = new Pcg32();
@@ -115,9 +122,8 @@ public class Workload {
                             int actionModel = pcg.nextInt(100);
                             int model = pcg.nextInt(100);
                             if (actionModel <= selectPercent) {
-                                Record id = null;
                                 if (model <= existsPercent) {
-                                    id = getNextRecord(pcg);
+                                    Record id = getNextRecord(pcg, true);
                                     selectPs.setString(1, id.customername);
                                     selectPs.setString(2, id.idtype);
                                     selectPs.setString(3, id.idcode);
@@ -127,13 +133,10 @@ public class Workload {
                                     selectPs.setString(3, "" + pcg.nextInt(10000));
                                 }
                                 selectPs.executeQuery();
-                                if (id!=null){
-                                    resetFlags(id);
-                                }
                             } else {
                                 Record id = null;
                                 if (model <= existsPercent) {
-                                    id = getNextRecord(pcg);
+                                    id = getNextRecord(pcg, false);
                                     updatePs.setString(3, id.customername);
                                     updatePs.setString(4, id.idtype);
                                     updatePs.setString(5, id.idcode);
@@ -145,18 +148,21 @@ public class Workload {
                                 updatePs.setString(1, stringGenerator.genRandStr(50));
                                 updatePs.setString(2, stringGenerator.genRandStr(7000));
                                 updatePs.execute();
-                                conn.commit();
-                                if (id!=null){
+                                selectConnection.commit();
+                                if (id != null) {
                                     resetFlags(id);
                                 }
                             }
                         } catch (Exception e) {
                             e.printStackTrace();
-                            DbUtil.getInstance().closeConnection(conn);
-                            conn = DbUtil.getInstance().getConnection();
-                            conn.setAutoCommit(false);
-                            selectPs = conn.prepareStatement(selectSQL);
-                            updatePs = conn.prepareStatement(updateSQL);
+                            DbUtil.getInstance().closeConnection(selectConnection);
+                            DbUtil.getInstance().closeConnection(updateConnection);
+                            selectConnection = DbUtil.getInstance().getConnection();
+                            updateConnection = DbUtil.getInstance().getConnection();
+                            selectConnection.setAutoCommit(true);
+                            updateConnection.setAutoCommit(false);
+                            selectPs = selectConnection.prepareStatement(selectSQL);
+                            updatePs = updateConnection.prepareStatement(updateSQL);
                         }
                         threadFinishedSize++;
                         if (threadFinishedSize % printSize == 0) {
@@ -171,8 +177,11 @@ public class Workload {
                 } finally {
                     tmpwg.countDown();
                     try {
-                        if (conn != null) {
-                            DbUtil.getInstance().closeConnection(conn);
+                        if (selectConnection != null) {
+                            DbUtil.getInstance().closeConnection(selectConnection);
+                        }
+                        if (updateConnection != null) {
+                            DbUtil.getInstance().closeConnection(updateConnection);
                         }
                     } catch (SQLException e) {
                         e.printStackTrace();
