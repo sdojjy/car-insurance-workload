@@ -52,7 +52,7 @@ public class Workload {
         volatile boolean used = false;
     }
 
-    private  static Record getNextRecord(Pcg32 pcg, boolean modify) {
+    private synchronized static Record getNextRecord(Pcg32 pcg, boolean modify) {
 //        return  ids.poll();
 
         Record r = ids[pcg.nextInt(ids.length)];
@@ -66,7 +66,7 @@ public class Workload {
         return r;
     }
 
-    private static void resetFlags(Record r) {
+    private synchronized static void resetFlags(Record r) {
         r.used = false;
 //        ids.add(r);
     }
