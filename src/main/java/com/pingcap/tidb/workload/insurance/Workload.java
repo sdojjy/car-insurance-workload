@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -51,28 +52,30 @@ public class Workload {
         volatile boolean used = false;
     }
 
-    private synchronized static Record getNextRecord(Pcg32 pcg, boolean modify) {
-        Record r = ids[pcg.nextInt(ids.length)];
-        if (!modify) {
-            return r;
-        }
-        while (r.used) {
-            r = ids[pcg.nextInt(ids.length)];
-        }
-        r.used = true;
-        return r;
+    private  static Record getNextRecord(Pcg32 pcg, boolean modify) {
+        return ids.poll();
+//        Record r = ids[pcg.nextInt(ids.length)];
+//        if (!modify) {
+//            return r;
+//        }
+//        while (r.used) {
+//            r = ids[pcg.nextInt(ids.length)];
+//        }
+//        r.used = true;
+//        return r;
     }
 
     private static void resetFlags(Record r) {
-        r.used = false;
+//        r.used = false;
+        ids.add(r);
     }
 
-    private static Record[] ids = null;
+    private static ArrayBlockingQueue<Record> ids = null;
 
     private static void queryIds() throws Exception {
         Connection conn = null;
         try {
-            ids = new Record[fetchSize];
+            ids = new ArrayBlockingQueue<Record>(fetchSize);
             conn = DbUtil.getInstance().getConnection();
             System.out.println(new Date() + " start to query random record from TiDB....");
             PreparedStatement ps = conn.prepareStatement(String
@@ -86,7 +89,8 @@ public class Workload {
                 record.customername = rs.getString(1);
                 record.idtype = rs.getString(2);
                 record.idcode = rs.getString(3);
-                ids[index++] = record;
+                ids.add(record);
+//                ids[index++] = record;
             }
             rs.close();
         } finally {
